@@ -1,0 +1,14 @@
+{
+  "name": "fetch-metadata-anons",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "fetch": "node fetch.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "secretjs": "^1.4.5"
+  }
+}
