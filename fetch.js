@@ -24,7 +24,6 @@ const fetchMetadata = async (contractAddress) => {
     }
     const collectionName = contractInfoResponse.contract_info.name;
 
-
     // Grab the total number of tokens so we can set the limit for our `all_tokens` query
     const numTokensResponse = await queryClient.query.compute.queryContract({
         contractAddress: contractAddress,
@@ -64,23 +63,41 @@ const fetchMetadata = async (contractAddress) => {
     }
     console.log(`Found ${tokenIds.length} tokens in collection: ${collectionName}`);
 
-    // Grab the metadata of each token in the collection
     let metadata = [];
-    for(const tokenId of tokenIds) {
-        const metadataResponse = await queryClient.query.compute.queryContract({
-            contractAddress: contractAddress,
-            codeHash: codeHash,
-            query: {
-                nft_info: {
-                    token_id: tokenId
-                }
-            },
-        });
-        if(!metadataResponse.nft_info) {
-            console.error(`Failed to fetch 'nft_info' for ${collectionName} (#${tokenId})`);
+
+    const batchNftDossierResponse = await queryClient.query.compute.queryContract({
+        contractAddress: contractAddress,
+        codeHash: codeHash,
+        query: {
+            batch_nft_dossier: {
+                token_ids: tokenIds
+            }
         }
-        metadata.push(metadataResponse.nft_info.token_uri ?? metadataResponse.nft_info.extension);
+    });
+
+    if(batchNftDossierResponse.batch_nft_dossier) {
+        metadata = batchNftDossierResponse.batch_nft_dossier.nft_dossiers;
+    } else if(typeof batchNftDossierResponse === "string" && batchNftDossierResponse.includes("unknown variant")) {
+        // Grab the metadata of each token in the collection
+        for(const tokenId of tokenIds) {
+            const metadataResponse = await queryClient.query.compute.queryContract({
+                contractAddress: contractAddress,
+                codeHash: codeHash,
+                query: {
+                    nft_info: {
+                        token_id: tokenId
+                    }
+                },
+            });
+            if(!metadataResponse.nft_info) {
+                console.error(`Failed to fetch 'nft_info' for ${collectionName} (#${tokenId})`);
+            }
+            metadata.push(metadataResponse.nft_info.token_uri ?? metadataResponse.nft_info.extension);
+        }
+    } else {
+        console.error("Failed to fetch the metadata for collection: " + collectionName);
     }
+
     console.log(`Fetched ${metadata.length} metadata objects for collection: ${collectionName}`);
     fs.writeFileSync(`./output/${collectionName} (${numTokens}).json`, JSON.stringify(metadata, null, 2), { encoding: "utf8" });
 }
